@@ -17,6 +17,8 @@ from tf.transformations import quaternion_from_euler
 
 
 class MatlabTaskTest(unittest.TestCase):
+    def setUp(self):
+        self.task_status_pub = rospy.Publish
 
     def test_matlab_sub(self):
         rospy.loginfo("successfully initialized")
