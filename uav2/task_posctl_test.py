@@ -67,9 +67,10 @@ class MavrosOffboardPosctlTest(MavrosTestCommon):
 
         self.pos = PoseStamped()
         self.radius = 1
-        self.height = 20
-        self.curr_task_pos = (0, 0, 20)
-        self.prev_task_pos = (0, 0, 20)
+        self.height = 17.5
+        self.curr_task_pos = (-10, -10, 17.5)
+        self.prev_task_pos = (-10, -10, 17.5)
+        self.home_pos = (-10, -10, 17.5)
         self.mission_done = False
         self.idling = False
 
@@ -208,7 +209,7 @@ class MavrosOffboardPosctlTest(MavrosTestCommon):
         self.set_mode("OFFBOARD", 5)
         self.set_arm(True, 5)
 
-        self.reach_position(0, 0, self.height, 30)  # set takeoff height
+        self.reach_position(self.home_pos[0], self.home_pos[1], self.height, 30)  # set takeoff height
         rospy.loginfo("height reached; waiting for mission")
 
         # positions = [(50, 50, 20), (50, -50, 20), (-50, -50, 20),
@@ -228,7 +229,7 @@ class MavrosOffboardPosctlTest(MavrosTestCommon):
         # for i in xrange(len(positions)):
         #     self.reach_position(positions[i][0], positions[i][1],
         #                         positions[i][2], 30)
-        self.reach_position(0, 0, self.height, 30)  # returning to home location
+        self.reach_position(self.home_pos[0], self.home_pos[1], self.height, 30)  # returning to home location
         self.set_mode("AUTO.LAND", 5)
         self.wait_for_landed_state(mavutil.mavlink.MAV_LANDED_STATE_ON_GROUND,
                                    45, 0)
