@@ -1,5 +1,5 @@
 """
-Performs task allocation given number of drones
+Performs task allocation given number of drones online
 """
 import rospy
 from std_msgs.msg import String, Int32, Bool
@@ -17,18 +17,21 @@ def generate_tasks(num_task, min_pos, max_pos, height):
 
 
 # global variable
-
 num_task = 12
 num_robots = 3
-# task_list = generate_tasks(num_task, -30, 30, 20)  # randomly generate tasks
+max_pose = 10
+min_pos = -10
+# task_list = generate_tasks(num_task, min_pos, max_pose, 20)  # randomly generate tasks
 task_list = [(-9, -9, 20), (-9, 9, 20), (9, -9, 20), (9, 9, 20), (-4, -4, 20), (4, -4, 20), (-4, 4, 20), (4, 4, 20),
              (0, 10, 20), (10, 0, 20), (0, -10, 20), (-10, 0, 20)]
-# curr_task = task_list[0]
-count = 0
-task_count = 0
+# using 1 and 0 to represent true or false
+task_status = np.zeros(len(task_list))  # recording finished tasks
+robot_curr_task_id = np.empty(num_robots)  # records which task is currently working on
+rem_task_list = np.empty(len(task_list))
 first_task = np.ones(num_robots)
 task_done = np.zeros(num_robots)
 mission_done = np.zeros(num_robots)
+task_count = 0
 
 robot_pos = np.empty((num_robots, 3))
 
@@ -44,10 +47,10 @@ mission_complete_pub = rospy.Publisher('/mission_bool', Bool, queue_size=1)
 
 def assign_tasks(_n_robot, r_pos, _tasks):
     task_id = np.empty(len(_tasks))  # which robot gets the task
-    for t in range(len(task_list)):
+    for t in range(len(_tasks)):
         cost_list = np.zeros(_n_robot)
         for n in range(_n_robot):
-            tx, ty, tz = task_list[t]
+            tx, ty, tz = _tasks[t]
             rx, ry, rz = r_pos[n]
             # rospy.loginfo(rx)
             cost = (tx - rx) * (tx - rx) + (ty - ry) * (ty - ry)
@@ -60,6 +63,29 @@ def assign_tasks(_n_robot, r_pos, _tasks):
         r_id = task_id[t]
         robot_tasks[int(r_id)].append(_tasks[t])
     return task_id, robot_tasks
+
+
+def online_task_assign(r_pos, _tasks, _task_status):
+    rx, ry, rz = r_pos
+    cost_list = np.empty(len(_tasks))
+    _count = 0
+    for i, t in enumerate(_tasks):
+        if _task_status[i] == 0:  # task is available
+            tx, ty, tz = t
+            cost_list[i] = (tx - rx) * (tx - rx) + (ty - ry) * (ty - ry)
+        else:  # 1 or 2
+            cost_list[i] = 2 * (max_pose - min_pos) * (max_pose - min_pos)  # max possible cost to prevent assignment
+            _count += 1
+    if _count == num_task:
+        _no_task = True
+    elif _count >= num_task:
+        _no_task = True
+        rospy.loginfo("WARNING: COUNT IS BIGGER THAN TASK COUNT!")
+    else:
+        _no_task = False
+    task_id = np.argmin(cost_list)
+    next_task = _tasks[task_id]
+    return int(task_id), next_task, _no_task
 
 
 def status_callback0(data):
@@ -104,19 +130,19 @@ def robot2_pos_callback(msg):
     robot_pos[2][2] = msg.pose.position.z
 
 
-def publish_task_position(_curr_task_pub, pos):
+def publish_task_position(curr_task_pub0, pos):
     waypoint = PoseStamped()
     waypoint.header.stamp = rospy.Time.now()
     waypoint.pose.position.x = pos[0]
     waypoint.pose.position.y = pos[1]
     waypoint.pose.position.z = pos[2]
-    _curr_task_pub.publish(waypoint)
+    curr_task_pub0.publish(waypoint)
     rospy.loginfo('current task position {}'.format(pos))
 
 
 if __name__ == '__main__':
     try:
-        rospy.init_node('master_task_alloc_node', anonymous=True)
+        rospy.init_node('talker2', anonymous=True)
 
         # TODO: wait for service from robots to confirm they are ready for tasks
 
@@ -139,39 +165,40 @@ if __name__ == '__main__':
         rate = rospy.Rate(3)
         rospy.sleep(3)
         rospy.loginfo("planning now, robot pose:"+str(robot_pos))
-        rospy.sleep(3)
-        task_id_list, robot_tasks_list = assign_tasks(num_robots, robot_pos, task_list)
-        rospy.loginfo("task assignments finished! starting mission"+str(robot_tasks_list))
+        rospy.sleep(1)
+        # initially assign tasks to each robot
+        for n in range(num_robots):
+            curr_task_id, curr_task, no_task = online_task_assign(robot_pos[n], task_list, task_status)
+            robot_curr_task_id[n] = int(curr_task_id)
+            task_status[curr_task_id] = 1
+            publish_task_position(curr_task_pub[n], curr_task)
+            task_done[n] = 0
+            task_count += 1
+        rospy.loginfo("task assignments finished! starting mission")
 
         while not rospy.is_shutdown():
             for i in range(num_robots):  # iterate through robots
-                if task_done[i] == 1:  # if current task is done
-
-                    if first_task[i] == 1:
-                        first_task[i] = 0
+                if task_done[i] == 1:  # if robot is done with current task
+                    task_status[int(robot_curr_task_id[i])] = 2
+                    curr_task_id, curr_task, no_task = online_task_assign(robot_pos[i], task_list, task_status)
+                    if no_task:
+                        rospy.loginfo("no more task! waiting for mission to finish")
                     else:
-                        if robot_tasks_list[i]:
-                            robot_tasks_list[i].pop(0)
-                    if robot_tasks_list[i]:  # if there is next task
-                        task_count += 1
-                        curr_task = robot_tasks_list[i][0]
-                        rospy.loginfo('Assigning the next task')
+                        robot_curr_task_id[i] = curr_task_id
+                        task_status[int(robot_curr_task_id[i])] = 1
+                        publish_task_position(curr_task_pub[i], curr_task)
                         task_done[i] = 0
-
-                        publish_task_position(curr_task_pub[i], robot_tasks_list[i][0])
-                    else:
-                        rospy.loginfo('robot'+str(i)+' tasks completed! Waiting for other robots')
-                        mission_done[i] = 1
+                        task_count += 1
 
             # termination check
-            if sum(mission_done) == num_robots:
+            if np.sum(task_status) == num_task * 2:
                 tf = 10
                 while tf > 0:  # wait to shutdown node
                     mission_complete_pub.publish(True)
                     rospy.loginfo("Mission accomplished! Terminating the node in "+str(tf))
                     tf -= 1
                     rospy.sleep(1)
-                rospy.loginfo("Number of tasks completed: " + str(task_count))
+                rospy.loginfo("Number of tasks completed: "+str(task_count))
                 break
 
             rate.sleep()
