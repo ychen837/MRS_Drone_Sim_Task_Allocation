@@ -68,8 +68,8 @@ class MavrosOffboardPosctlTest(MavrosTestCommon):
         self.pos = PoseStamped()
         self.radius = 1
         self.height = 20
-        self.curr_task_pos = (0, 0, 20)
-        self.prev_task_pos = (0, 0, 20)
+        self.curr_task_pos = (0, 0, self.height )
+        self.prev_task_pos = (0, 0, self.height )
         self.mission_done = False
         self.idling = False
 

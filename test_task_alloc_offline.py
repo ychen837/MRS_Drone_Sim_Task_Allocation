@@ -116,7 +116,7 @@ def publish_task_position(_curr_task_pub, pos):
 
 if __name__ == '__main__':
     try:
-        rospy.init_node('master_task_alloc_node', anonymous=True)
+        rospy.init_node('master_offline_task_alloc_node', anonymous=True)
 
         # TODO: wait for service from robots to confirm they are ready for tasks
 
