@@ -10,6 +10,7 @@ Prerequisites:
 - QGroundController executable
 
 Simulation:
+
 ![alt text](https://github.com/ychen837/MRS_Drone_Sim_Task_Allocation/blob/main/demo/online.gif)
 - Start the QGroundController App
 - Start the Gazebo simulator following https://dev.px4.io/master/en/simulation/multi_vehicle_simulation_gazebo.html
