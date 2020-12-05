@@ -1,5 +1,6 @@
 # MRS_Drone_Sim_Task_Allocation
 
+![alt text](https://github.com/ychen837/MRS_Drone_Sim_Task_Allocation/blob/main/Screenshot%20from%202020-12-04%2000-38-52.png)
 
 Prerequisites:
 - Install Ubuntu 18.04
