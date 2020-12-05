@@ -32,11 +32,8 @@
 #
 #***************************************************************************/
 
-#
 # @author Andreas Antener <andreas@uaventure.com>
-#
-# The shebang of this file is currently Python2 because some
-# dependencies such as pymavlink don't play well with Python3 yet.
+
 from __future__ import division
 
 PKG = 'px4'
@@ -212,8 +209,6 @@ class MavrosOffboardPosctlTest(MavrosTestCommon):
         self.reach_position(self.home_pos[0], self.home_pos[1], self.height, 30)  # set takeoff height
         rospy.loginfo("height reached; waiting for mission")
 
-        # positions = [(50, 50, 20), (50, -50, 20), (-50, -50, 20),
-        #              (0, 0, 20)]
         while not self.mission_done:
             if self.idling:
                 rospy.loginfo('waiting for next task')
@@ -226,9 +221,7 @@ class MavrosOffboardPosctlTest(MavrosTestCommon):
             if self.mission_done and self.idling:
                 rospy.loginfo('mission completed! Landing now')
                 break
-        # for i in xrange(len(positions)):
-        #     self.reach_position(positions[i][0], positions[i][1],
-        #                         positions[i][2], 30)
+
         self.reach_position(self.home_pos[0], self.home_pos[1], self.height, 30)  # returning to home location
         self.set_mode("AUTO.LAND", 5)
         self.wait_for_landed_state(mavutil.mavlink.MAV_LANDED_STATE_ON_GROUND,
@@ -245,3 +238,4 @@ if __name__ == '__main__':
                        MavrosOffboardPosctlTest)
     except rospy.ROSInterruptException:
         pass
+
